@@ -6,11 +6,15 @@ from dotenv import load_dotenv
 import os
 from glob import glob
 import cloudinary
+from cloudinary import uploader
+import json
+
+
 load_dotenv()
 cloudinary.config(
     cloud_name=os.environ['CLOUD_NAME'],
     api_key=os.environ['API_KEY'],
-    api_secret=os.environ['API_SECRET'],
+    api_secret=os.environ['API_SECRET']
 )
 print(os.environ['CLOUD_NAME'])
 service = Service(executable_path="C:\Program Files\WebDriver\bin")
@@ -22,6 +26,10 @@ driver = webdriver.Chrome(
     options=options,
 )
 driver.set_window_size(1920, 1080)
+
+imgName = "contributions"
+folder ='portfolio_images/git/'
+
 
 driver.get("https://github-contributions.vercel.app/")
 driver.implicitly_wait(5)
@@ -36,13 +44,22 @@ WebDriverWait(driver,
 driver.find_element(By.XPATH, "//input[@value='githubDark']").click()
 
 img = driver.find_element(By.TAG_NAME, "canvas")
-pngFile = glob("*.png")
-if pngFile:
-    os.remove("contributions.png")
-isSaved = img.screenshot("contributions.png")
-# if isSaved:
-
-# else Exception as e:
-#     print(e)
+pngFiles = glob("*.png")
+for file in pngFiles:
+    if file:
+        os.remove(file)
+isSaved = img.screenshot(imgName+'.png')
+if isSaved:
+    try:
+        response = uploader.destroy(public_id=folder+imgName)
+        isDeleted = str(response).strip("'<>() ").replace('\'', '\"')
+        # print(json.loads(isDeleted)["result"])
+        if json.loads(isDeleted)['result']=='ok' or json.loads(isDeleted)['result']=='not found':
+            uploaded = uploader.upload(imgName,public_id=folder+imgName,folder=folder)
+            print(uploaded)
+    except Exception as e:
+        print(e)
+else:
+    print("something went wrong.")
 
 # print()
