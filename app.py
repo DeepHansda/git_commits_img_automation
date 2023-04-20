@@ -48,15 +48,15 @@ isSaved = img.screenshot(imgName + '.png')
 
 if isSaved:
     try:
-        response = uploader.destroy(public_id=folder + '/' + imgName + '.png')
+        response = uploader.destroy(public_id=imgName + '.png' + 'deep')
         isDeleted = str(response).strip("'<>() ").replace('\'', '\"')
         print(json.loads(isDeleted)["result"])
         if json.loads(isDeleted)['result'] == 'ok' or json.loads(
                 isDeleted)['result'] == 'not found':
-            uploaded = uploader.upload(imgName + ".png",
-                                       public_id=folder + '/' + imgName +
-                                       '.png',
-                                       folder=folder)
+            uploaded = uploader.upload(
+                imgName + ".png",
+                public_id=imgName + '.png' + 'deep',
+            )
             print(uploaded)
     except Exception as e:
         print(e)
