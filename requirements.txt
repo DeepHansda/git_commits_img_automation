@@ -1,0 +1,3 @@
+selenium
+cloudinary
+python-dotenv

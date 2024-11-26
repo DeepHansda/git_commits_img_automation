@@ -1,66 +1,85 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 import os
 from glob import glob
 import cloudinary
 from cloudinary import uploader
 import json
+import platform
+
 
 load_dotenv()
-cloudinary.config(cloud_name=os.environ['CLOUD_NAME'],
-                  api_key=os.environ['API_KEY'],
-                  api_secret=os.environ['API_SECRET'])
-print(os.environ['CLOUD_NAME'])
-service = Service(executable_path="C:\Program Files\WebDriver\bin")
-options = webdriver.ChromeOptions()
-options.add_experimental_option('excludeSwitches', ['enable-logging'])
-options.add_experimental_option("detach", True)
-driver = webdriver.Chrome(
-    service=service,
-    options=options,
+git_user_name = os.environ["GIT_USER"]
+cloudinary.config(
+    cloud_name=os.environ["CLOUD_NAME"],
+    api_key=os.environ["API_KEY"],
+    api_secret=os.environ["API_SECRET"],
 )
-driver.set_window_size(1920, 1080)
+print(git_user_name)
+if os.name == "nt":  # Windows
+    geckodriver_path = "C:\\WebDriver\\geckodriver.exe"
+elif os.name == "posix":  # Linux/Mac
+    geckodriver_path = "/usr/local/bin/geckodriver"
+else:
+    raise Exception("Unsupported operating system")
+
+service = Service(executable_path=geckodriver_path)
+options = webdriver.FirefoxOptions()
+options.add_argument("--width=1920")
+options.add_argument("--height=1080")
+
+
+# Initialize WebDriver
+driver = webdriver.Firefox(service=service, options=options)
 
 imgName = "contributions"
-folder = 'portfolio_images/git'
+folder = "portfolio_images/git"
 
-driver.get("https://github-contributions.vercel.app/")
-driver.implicitly_wait(5)
-input = driver.find_element(By.ID, "username")
-input.send_keys("deepHansda")
-button = driver.find_element(By.TAG_NAME, "button")
-button.click()
+try:
+    driver.get("https://github-contributions.vercel.app/")
+    WebDriverWait(driver, timeout=10).until(
+        EC.presence_of_element_located((By.ID, "username"))
+    )
 
-WebDriverWait(
-    driver, timeout=10).until(lambda d: d.find_element(By.TAG_NAME, "canvas"))
+    input_element = driver.find_element(By.ID, "username")
+    input_element.send_keys(git_user_name)
+    button = driver.find_element(By.TAG_NAME, "button")
+    button.click()
 
-driver.find_element(By.XPATH, "//input[@value='githubDark']").click()
+    WebDriverWait(driver, timeout=10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "canvas"))
+    )
 
-img = driver.find_element(By.TAG_NAME, "canvas")
-pngFiles = glob("*.png")
-for file in pngFiles:
-    if file:
+    driver.find_element(By.XPATH, "//input[@value='githubDark']").click()
+
+    img = driver.find_element(By.TAG_NAME, "canvas")
+    # Clear existing screenshots
+    for file in glob("*.png"):
         os.remove(file)
-isSaved = img.screenshot(imgName + '.png')
 
-if isSaved:
-    try:
-        response = uploader.destroy(public_id=imgName + '.png' + 'deep')
-        isDeleted = str(response).strip("'<>() ").replace('\'', '\"')
-        print(json.loads(isDeleted)["result"])
-        if json.loads(isDeleted)['result'] == 'ok' or json.loads(
-                isDeleted)['result'] == 'not found':
-            uploaded = uploader.upload(
-                imgName + ".png",
-                public_id=imgName + '.png' + 'deep',
-            )
-            print(uploaded)
-    except Exception as e:
-        print(e)
-else:
-    print("something went wrong.")
+    if img.screenshot(imgName + ".png"):
+        try:
+            # Check and delete existing Cloudinary image
+            response = uploader.destroy(public_id=f"{imgName}_deep")
+            deletion_result = json.loads(json.dumps(response))
+            print(deletion_result)
 
-# print()
+            if deletion_result.get("result") in ["ok", "not found"]:
+                # Upload new screenshot
+                uploaded = uploader.upload(
+                    imgName + ".png",
+                    public_id=f"{imgName}_deep",
+                )
+                print(uploaded)
+        except Exception as e:
+            print(f"Cloudinary Error: {e}")
+    else:
+        print("Screenshot failed.")
+except Exception as e:
+    print(f"Error: {e}")
+# finally:
+#     driver.quit()
